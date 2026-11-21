@@ -162,6 +162,8 @@ button.rod.cue,button.cube.cue{outline:3px solid var(--gold);outline-offset:2px;
 .cue.hand::after{content:"👆";position:absolute;left:50%;top:100%;margin-top:2px;font-size:28px;line-height:1;pointer-events:none;animation:hand 1s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
 .btn.cue.hand,.pbtn.cue.hand{position:relative}
 .pcard .target{box-shadow:0 0 0 5px rgba(245,189,88,.9);animation:cueSoft 1.3s ease-in-out infinite}
+.pdigit.colfocus{background:#FFF1D6;box-shadow:0 0 0 3px var(--gold);animation:cueSoft 1.3s ease-in-out infinite}
+.pwork:disabled,.pbox:disabled{opacity:.45}
 
 
 /* ---------- Need strip + big number ---------- */
@@ -744,13 +746,13 @@ function practiceCard(s, A, B, hooks){
   const cls = (base,key) => base + (g.wrongKeys.includes(key)?' wrong':'') + (hooks.target===key?' target':'');
   const clearWrong = (el,key) => { el.classList.remove('wrong'); g.wrongKeys = g.wrongKeys.filter(k=>k!==key); };
   for (let i=0;i<2;i++){
-    const w = put(h('input',{class:cls('pwork','pw-'+i), type:'text', inputmode:'numeric', autocomplete:'off', maxlength:'2',
+    const w = put(h('input',{class:cls('pwork','pw-'+i), type:'text', inputmode:'numeric', autocomplete:'off', maxlength:'2', disabled:hooks.locked||null,
       'data-key':'pw-'+i, 'aria-label':`New top number for the ${PLACE_NAMES[i]}`}), 2+i, 1);
     w.value = g.work[i];
-    const d = put(h('div',{class:cls('pdigit tap'+(g.struck[i]?' struck':''),'pd-'+i), role:'button', tabindex:'0', 'data-key':'pd-'+i,
+    const d = put(h('div',{class:cls('pdigit tap'+(g.struck[i]?' struck':'')+(hooks.colFocus===PLACE_NAMES[i]?' colfocus':''),'pd-'+i), role:'button', tabindex:'0', 'data-key':'pd-'+i,
       'aria-pressed':String(g.struck[i]), 'aria-label':`Top ${PLACE_NAMES[i]} digit ${ad[i]}. Tap to cross out.`}, ad[i]), 2+i, 2);
     const setStruck = on => { g.struck[i] = on; d.classList.toggle('struck', on); d.setAttribute('aria-pressed', String(on)); };
-    const flip = () => { setStruck(!g.struck[i]); hooks.onChange('pd-'+i); };
+    const flip = () => { if (hooks.locked){ hooks.onLocked && hooks.onLocked(); return; } setStruck(!g.struck[i]); hooks.onChange('pd-'+i); };
     d.addEventListener('click', flip);
     d.addEventListener('keydown', e => { if (e.key===' ' || e.key==='Enter'){ e.preventDefault(); flip(); } });
     w.addEventListener('input', () => {
@@ -761,11 +763,11 @@ function practiceCard(s, A, B, hooks){
     w.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); hooks.onCheck(); } });
   }
   put(h('div',{class:'pop','aria-label':'minus'},'−'), 1, 3);
-  bd.forEach((v,i) => put(h('div',{class:'pdigit'}, v), 2+i, 3));
+  bd.forEach((v,i) => put(h('div',{class:'pdigit'+(hooks.colFocus===PLACE_NAMES[i]?' colfocus':''),'data-key':'pb-'+i}, v), 2+i, 3));
   put(h('div',{class:'prule'}), '1 / -1', 4);
   const boxes = [];
   for (let i=0;i<2;i++){
-    const b = put(h('input',{class:cls('pbox','pa-'+i), type:'text', inputmode:'numeric', autocomplete:'off', maxlength:'1',
+    const b = put(h('input',{class:cls('pbox','pa-'+i), type:'text', inputmode:'numeric', autocomplete:'off', maxlength:'1', disabled:hooks.locked||null,
       'data-key':'pa-'+i, 'aria-label':`answer box, ${PLACE_NAMES[i]}`}), 2+i, 5);
     b.value = g.ans[i]; boxes.push(b);
     b.addEventListener('input', () => {
@@ -785,7 +787,7 @@ function practiceCard(s, A, B, hooks){
     h('p',{class:'phint'},'Tap a top number to cross it out, then write its new value above.'),
     grid,
     h('div',{class:'pfeedback '+g.fb.cls,'aria-live':'polite'}, g.fb.text),
-    h('div',{class:'pactions'}, h('button',{class:'pbtn'+(hooks.target==='pcheck'?' target':''),type:'button','data-key':'pcheck',onclick:hooks.onCheck,hidden:hooks.done||null},'Check my work')));
+    h('div',{class:'pactions'}, h('button',{class:'pbtn'+(hooks.target==='pcheck'?' target':''),type:'button','data-key':'pcheck',onclick:hooks.onCheck,hidden:(hooks.done||hooks.locked)||null},'Check my work')));
 }
 function setTarget(key){
   document.querySelectorAll('.pcard .target').forEach(e=>e.classList.remove('target'));
@@ -835,11 +837,13 @@ function fillSide(s, side, o){
   if (s.prog >= 3) m.removeOnes(bo);
   if (s.prog >= 4) m.tens.slice(-bt).forEach(b=>b.removed=true);
   m.lastRemoved = null;
+  const isEnough = s.phase === 'enough';
   side.replaceChildren(...[
+    isEnough ? needRow(O, bo, s.tried && s.tried.length > 0) : null,
     h('button',{type:'button',class:'btn btn-soft btn-sm','data-key':'blocks','aria-expanded':String(s.showBlocks),
       onclick:()=>{ s.showBlocks = !s.showBlocks; fillSide(s, side, o); }}, s.showBlocks ? o.toggleLabel[1] : o.toggleLabel[0]),
     s.showBlocks ? h('div',{style:'margin-top:8px'}, renderMat(m,{compact:true, name:'ref'}), eqStrip(m)) : null,
-    h('ul',{class:'links'}, o.links.slice(0, s.prog).map(t=>h('li',{html:t})))].filter(Boolean));
+    h('ul',{class:'links'}, (o.pre ? [h('li',{html:o.pre})] : []).concat(o.links.slice(0, s.prog).map(t=>h('li',{html:t}))))].filter(Boolean));
 }
 
 /* =========================================================
@@ -1156,20 +1160,34 @@ STEPS.push({
 
 /* ---------- Moment 5: Connect to the Written Algorithm ---------- */
 const SLOTS5 = withKeys(makeSlots({top:[4,2], bot:[1,7], ask:[
-  'We broke 1 ten. <b>Tap the 4</b> to cross it out. How many tens now? Write it in the <b>green box</b>.',
+  'Break a ten from the 4! <b>Tap the 4</b> to cross it out. How many tens now? Write it in the <b>green box</b>.',
   'Now <b>tap the 2</b>. How many ones now? Write it in its <b>green box</b>.',
   'Ones: <b>12 − 7</b>. Write it in the ones box.',
   'Tens: <b>3 − 1</b>. Write it in the tens box.']}));
+const PRE5 = '<b>2 − 7?</b> · Not enough ones!';
 const LINKS5 = ['<b>4 → 3</b> · We broke 1 ten into ones.','<b>2 → 12</b> · The 10 new ones joined the 2 ones.','<b>12 − 7 = 5</b> · We took away 7 ones.','<b>3 − 1 = 2</b> · We took away 1 ten.'];
 STEPS.push({
-  id:'m5', cue:s=> s.done ? null : {sel:'.pcard .target', hand:false}, label:'Write It', kicker:'Moment 5 of 5',
-  init:()=>({prog:0, wrong:0, hint:0, showBlocks:false, done:false, complete:false,
-    line:{mood:'think', text:"Now let's write what we did with numbers! " + SLOTS5[0].ask}}),
+  id:'m5', cue:s=> s.done ? null : s.phase==='enough' ? {sel:'.choices .choice:not(.tried)', hand:false} : {sel:'.pcard .target', hand:false}, label:'Write It', kicker:'Moment 5 of 5',
+  init:()=>({phase:'enough', tried:[], right:null, prog:0, wrong:0, hint:0, showBlocks:false, done:false, complete:false,
+    line:{mood:'think', text:"Now let's write it with numbers! Start with the <b>ones</b>, just like before: <b>2 − 7</b>. Do we have enough ones?"}}),
   render(s){
     const side = h('div',{class:'side'});
-    const refresh = () => fillSide(s, side, {A:42, B:17, slots:SLOTS5, links:LINKS5, toggleLabel:['🧱 Show the blocks','🧱 Hide the blocks']});
+    const enough = s.phase === 'enough';
+    const refresh = () => fillSide(s, side, {A:42, B:17, slots:SLOTS5, links:LINKS5, pre: enough ? null : PRE5, toggleLabel:['🧱 Show the blocks','🧱 Hide the blocks']});
+    const pickEnough = i => {
+      if (i === 1){
+        s.phase = 'write'; s.tried = [];
+        say(s,'Right! Only 2 ones — not enough. Just like before, let’s <b>break a ten</b> from the 4. <b>Tap the 4</b> to cross it out!','wow');
+      } else {
+        if (!s.tried.includes(0)) s.tried.push(0); s.showBlocks = true;
+        say(s,'Look at the ones: <b>2</b> on top, and we take away <b>7</b>. Can we take 7 from 2?','think');
+      }
+      rerender();
+    };
     const card = practiceCard(s, 42, 17, {
-      target: s.done ? null : targetKey(s, SLOTS5), done: s.done,
+      locked: enough, colFocus: enough ? 'ones' : null,
+      onLocked: () => say(s,'First, look at the <b>ones</b>. Do we have enough to take away 7?','think'),
+      target: (s.done || enough) ? null : targetKey(s, SLOTS5), done: s.done,
       onChange:(field) => { guideStep(s, SLOTS5, field, 'Everything is filled in! Tap <b>Check my work</b>.'); refresh(); },
       onCheck:() => {
         guideStep(s, SLOTS5, null);
@@ -1187,10 +1205,13 @@ STEPS.push({
       }});
     refresh();
     return h('div',{}, head(this.kicker,'Write It Down'), h('div',{class:'algo-layout'}, card, side),
+      enough ? [h('p',{class:'ask-q',style:'margin:16px 0 0'},'Ones: 2 − 7. Do we have enough ones?'),
+        choiceList(s,[['👍','Yes, enough.'],['👎','No, not enough.']], pickEnough)] : null,
       s.done ? h('div',{class:'banner'},'✓ 42 − 17 = 25 · Same answer as our blocks!') : null);
   },
   help(s){
     const cur = SLOTS5[s.prog];
+    if (s.phase === 'enough'){ s.showBlocks = true; s.hint++; say(s,'We have <b>2</b> ones. We need to take away <b>7</b>. 2 is less than 7, so it’s <b>not enough</b>.','think'); return; }
     if (s.done){ say(s,'Tap <b>Next</b> for one more problem — on your own!','happy'); return; }
     if (!cur){ say(s,'Everything is filled in. Tap <b>Check my work</b>!','happy'); return; }
     s.showBlocks = true; s.hint++;
