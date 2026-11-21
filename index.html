@@ -886,7 +886,7 @@ STEPS.push({
   id:'m1', label:'Enough Ones?', kicker:'Moment 1 of 5',
   cue:s=> s.phase==='enough' ? {sel:'.choices .choice:not(.tried)', hand:false} : s.phase==='where' ? {sel:'.choices .choice:not(.tried)', hand:false} : null,
   init:()=>({model:new BlockModel(4,2), phase:'enough', hint:0, hl:null, tried:[], right:null, complete:false,
-    line:{mood:'neutral', text:'This is <b>42</b>. We need to take away <b>17</b>. Let’s start with the ones. We need to take away <b>7 ones</b>. Do we have enough?'}}),
+    line:{mood:'neutral', text:'This is <b>42</b>. We need to take away <b>17</b>. Let’s start with the ones. We need to take away <b>7 ones</b>. Do we have enough ones right now?'}}),
   render(s){
     const m = s.model;
     const tap = (k) => {
